@@ -4,7 +4,7 @@ import tabulate
 DATABASE_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'Soham@123',
+    'password': '',
     'database': 'Camping_site_Management_System',
 }
 
