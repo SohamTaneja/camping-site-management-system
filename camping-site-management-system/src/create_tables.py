@@ -113,7 +113,40 @@ def create_tables():
     )
     """)
 
-    # Master Records Table
+        # Insert sample data only if not already inserted
+    cursor.execute("SELECT COUNT(*) FROM visitors")
+    if cursor.fetchone()[0] == 0:
+        # Visitors
+        cursor.execute("INSERT INTO visitors (name, contact, email, id_number) VALUES ('Alice', '1234567890', 'alice@example.com', 1001)")
+        cursor.execute("INSERT INTO visitors (name, contact, email, id_number) VALUES ('Bob', '0987654321', 'bob@example.com', 1002)")
+
+        # Equipment
+        cursor.execute("INSERT INTO equipment (name, type, price, quantity, equipment_condition, is_available) VALUES ('Kayak', 'Boat', 100.0, 5, 'Good', TRUE)")
+        cursor.execute("INSERT INTO equipment (name, type, price, quantity, equipment_condition, is_available) VALUES ('Tent', 'Shelter', 50.0, 10, 'Good', TRUE)")
+
+        # Activities
+        cursor.execute("INSERT INTO activities (name, date, max_participants, price) VALUES ('Kayaking', '2025-06-01', 10, 200.0)")
+        cursor.execute("INSERT INTO activities (name, date, max_participants, price) VALUES ('Hiking', '2025-06-02', 15, 150.0)")
+
+        # Bookings
+        cursor.execute("INSERT INTO bookings (visitor_id, campground_id, check_in, check_out) VALUES (1, 101, '2025-07-01', '2025-07-05')")
+        cursor.execute("INSERT INTO bookings (visitor_id, campground_id, check_in, check_out) VALUES (2, 102, '2025-07-02', '2025-07-06')")
+
+        # Rentals
+        cursor.execute("INSERT INTO rentals (visitor_id, equipment_id, rental_date, return_date) VALUES (1, 1, '2025-07-01', '2025-07-02')")
+        cursor.execute("INSERT INTO rentals (visitor_id, equipment_id, rental_date, return_date) VALUES (2, 2, '2025-07-03', '2025-07-04')")
+
+        # Activity Registration
+        cursor.execute("INSERT INTO activity_registration (activity_id, visitor_id) VALUES (1, 1)")
+        cursor.execute("INSERT INTO activity_registration (activity_id, visitor_id) VALUES (2, 2)")
+
+        # Staff
+        cursor.execute("INSERT INTO staff (name, department, designation, HOD, contact, email, address, salary) VALUES ('John Smith', 'Operations', 'Manager', 'Jane Doe', '1112223333', 'john@camp.com', '123 Forest Lane', 45000.00)")
+        cursor.execute("INSERT INTO staff (name, department, designation, HOD, contact, email, address, salary) VALUES ('Emily Davis', 'Recreation', 'Guide', 'Jane Doe', '4445556666', 'emily@camp.com', '456 River Road', 32000.00)")
+
+        print("Sample data inserted.")
+    else:
+        print("Sample data already exists. Skipping inserts.")
 
     conn.commit()
     cursor.close()
