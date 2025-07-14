@@ -1,13 +1,13 @@
 import mysql.connector
-
 DATABASE_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': '',
-    'database': 'Camping_site_Management_System',
+    'password': 'Soham@123',
+    'database': 'Camping_site_Management_System'
 }
 
 def create_tables():
+    # Connect without database to create it
     conn = mysql.connector.connect(
         host=DATABASE_CONFIG['host'],
         user=DATABASE_CONFIG['user'],
@@ -15,7 +15,17 @@ def create_tables():
     )
     cursor = conn.cursor()
     cursor.execute("CREATE DATABASE IF NOT EXISTS Camping_site_Management_System")
-    conn.database = DATABASE_CONFIG['database']
+    cursor.close()
+    conn.close()
+
+    # Reconnect with database (this is the correct way)
+    conn = mysql.connector.connect(
+        host=DATABASE_CONFIG['host'],
+        user=DATABASE_CONFIG['user'],
+        password=DATABASE_CONFIG['password'],
+        database=DATABASE_CONFIG['database']  # Now specify the database
+    )
+    cursor = conn.cursor()
 
     # Visitors table
     cursor.execute("""
@@ -24,18 +34,7 @@ def create_tables():
         name VARCHAR(100),
         contact CHAR(10),
         email VARCHAR(100),
-        id_number VARCHAR(50)
-    )
-    """)
-
-    # Campgrounds table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS campgrounds (
-        campground_id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(100),
-        type VARCHAR(50),
-        capacity INT,
-        status ENUM('available', 'booked') DEFAULT 'available'
+        id_number BIGINT
     )
     """)
 
@@ -47,8 +46,7 @@ def create_tables():
         campground_id INT,
         check_in DATE,
         check_out DATE,
-        FOREIGN KEY (visitor_id) REFERENCES visitors(visitor_id),
-        FOREIGN KEY (campground_id) REFERENCES campgrounds(campground_id)
+        FOREIGN KEY (visitor_id) REFERENCES visitors(visitor_id)
     )
     """)
 
@@ -58,6 +56,8 @@ def create_tables():
         equipment_id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100),
         type VARCHAR(50),
+        price DECIMAL(10, 2),
+        quantity INT,
         equipment_condition VARCHAR(50),
         is_available BOOLEAN DEFAULT TRUE
     )
@@ -76,13 +76,14 @@ def create_tables():
     )
     """)
 
-    # Activities table
+    # Activities table (fixed comma)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS activities (
         activity_id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100),
         date DATE,
-        max_participants INT
+        max_participants INT,
+        price DECIMAL(10, 2)
     )
     """)
 
@@ -97,26 +98,21 @@ def create_tables():
     )
     """)
 
-    # Check-ins table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS checkins (
-        checkin_id INT AUTO_INCREMENT PRIMARY KEY,
-        visitor_id INT,
-        check_in_time DATETIME,
-        check_out_time DATETIME,
-        FOREIGN KEY (visitor_id) REFERENCES visitors(visitor_id)
-    )
-    """)
-
-    # Staff table (optional)
+    # Staff table (fixed comma)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS staff (
         staff_id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100),
-        role VARCHAR(50)
+        department VARCHAR(50),
+        designation VARCHAR(50),
+        HOD VARCHAR(100),
+        contact CHAR(10),
+        email VARCHAR(100),
+        address VARCHAR(255),
+        salary DECIMAL(10, 2)
     )
     """)
-
+    
     conn.commit()
     cursor.close()
     conn.close()
