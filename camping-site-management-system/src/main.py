@@ -1,5 +1,5 @@
 import mysql.connector
-import tabulate
+from datetime import datetime
 
 DATABASE_CONFIG = {
     'host': 'localhost',
@@ -8,7 +8,8 @@ DATABASE_CONFIG = {
     'database': 'Camping_site_Management_System',
 }
 
-def get_connection():
+
+def connect_db():
     return mysql.connector.connect(
         host=DATABASE_CONFIG['host'],
         user=DATABASE_CONFIG['user'],
@@ -16,250 +17,167 @@ def get_connection():
         database=DATABASE_CONFIG['database']
     )
 
-def insert_sample_data():
-    conn = get_connection()
+def show_table(table_name):
+    conn = connect_db()
     cursor = conn.cursor()
-    # Sample Visitors
-    cursor.execute("INSERT INTO visitors (name, contact, id_number) VALUES ('Alice', '1234567890', 'ID001')")
-    cursor.execute("INSERT INTO visitors (name, contact, id_number) VALUES ('Bob', '0987654321', 'ID002')")
-    # Sample Campgrounds
-    cursor.execute("INSERT INTO campgrounds (name, type, capacity) VALUES ('Pine Tent', 'Tent', 2)")
-    cursor.execute("INSERT INTO campgrounds (name, type, capacity) VALUES ('Oak Cabin', 'Cabin', 4)")
-    # Sample Equipment
-    cursor.execute("INSERT INTO equipment (name, type, equipment_condition) VALUES ('Kayak', 'Boat', 'Good')")
-    cursor.execute("INSERT INTO equipment (name, type, equipment_condition) VALUES ('Tent', 'Shelter', 'Good')")
-    # Sample Activities
-    cursor.execute("INSERT INTO activities (name, date, max_participants) VALUES ('Kayaking', '2025-06-01', 10)")
-    cursor.execute("INSERT INTO activities (name, date, max_participants) VALUES ('Hiking', '2025-06-02', 15)")
-    conn.commit()
-    cursor.close()
-    conn.close()
-    print("Sample data inserted.")
-
-def add_visitor():
-    name = input("Name: ")
-    contact = input("Contact: ")
-    id_number = input("ID Number: ")
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO visitors (name, contact, id_number) VALUES (%s, %s, %s)", (name, contact, id_number))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    print("Visitor added.")
-
-def update_visitor():
-    visitor_id = input("Visitor ID to update: ")
-    name = input("New Name: ")
-    contact = input("New Contact: ")
-    id_number = input("New ID Number: ")
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("UPDATE visitors SET name=%s, contact=%s, id_number=%s WHERE visitor_id=%s", (name, contact, id_number, visitor_id))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    print("Visitor updated.")
-
-def delete_visitor():
-    visitor_id = input("Visitor ID to delete: ")
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM visitors WHERE visitor_id=%s", (visitor_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    print("Visitor deleted.")
-
-def show_visitors():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT visitor_id, name, contact, id_number FROM visitors")
+    cursor.execute(f"SELECT * FROM {table_name}")
     rows = cursor.fetchall()
+    for row in rows:
+        print(row)
     cursor.close()
     conn.close()
-    if rows:
-        print(tabulate.tabulate(rows, headers=["ID", "Name", "Contact", "ID Number"], tablefmt="grid"))
-    else:
-        print("No visitors found.")
 
-def show_available_campgrounds():
-    conn = get_connection()
+def insert_into(table_name, columns, values):
+    conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT campground_id, name, type, capacity FROM campgrounds WHERE status='available'")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    if rows:
-        print(tabulate.tabulate(rows, headers=["Campground ID", "Name", "Type", "Capacity"], tablefmt="grid"))
-    else:
-        print("No available campgrounds.")
-
-def check_in():
-    visitor_id = input("Visitor ID: ")
-    show_available_campgrounds()
-    campground_id = input("Campground ID to book: ")
-    check_in_date = input("Check-in date (YYYY-MM-DD): ")
-    check_out_date = input("Check-out date (YYYY-MM-DD): ")
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO bookings (visitor_id, campground_id, check_in, check_out) VALUES (%s, %s, %s, %s)",
-        (visitor_id, campground_id, check_in_date, check_out_date)
-    )
-    cursor.execute(
-        "UPDATE campgrounds SET status='booked' WHERE campground_id=%s", (campground_id,)
-    )
-    # Log check-in
-    cursor.execute(
-        "INSERT INTO checkins (visitor_id, check_in_time) VALUES (%s, NOW())", (visitor_id,)
-    )
+    placeholders = ', '.join(['%s'] * len(values))
+    query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
+    cursor.execute(query, values)
     conn.commit()
     cursor.close()
     conn.close()
-    print("Check-in complete.")
+    print("Inserted successfully.\n")
 
-def check_out():
-    booking_id = input("Booking ID to check out: ")
-    conn = get_connection()
+def update_table(table_name, set_clause, condition_clause, values):
+    conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT visitor_id, campground_id FROM bookings WHERE booking_id=%s", (booking_id,))
-    result = cursor.fetchone()
-    if result:
-        visitor_id, campground_id = result
-        cursor.execute("UPDATE campgrounds SET status='available' WHERE campground_id=%s", (campground_id,))
-        cursor.execute("DELETE FROM bookings WHERE booking_id=%s", (booking_id,))
-        # Log check-out
-        cursor.execute("UPDATE checkins SET check_out_time=NOW() WHERE visitor_id=%s AND check_out_time IS NULL", (visitor_id,))
-        conn.commit()
-        print("Check-out complete.")
-    else:
-        print("Booking not found.")
-    cursor.close()
-    conn.close()
-
-def report_equipment_damage():
-    equipment_id = input("Equipment ID: ")
-    description = input("Damage description: ")
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE equipment SET equipment_condition='Damaged', is_available=FALSE WHERE equipment_id=%s",
-        (equipment_id,)
-    )
+    query = f"UPDATE {table_name} SET {set_clause} WHERE {condition_clause}"
+    cursor.execute(query, values)
     conn.commit()
     cursor.close()
     conn.close()
-    print("Damage reported.")
+    print("Updated successfully.\n")
 
-def show_equipment():
-    conn = get_connection()
+def delete_from_table(table_name, condition_column, value):
+    conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT equipment_id, name, type, equipment_condition, is_available FROM equipment")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    if rows:
-        print(tabulate.tabulate(rows, headers=["ID", "Name", "Type", "Condition", "Available"], tablefmt="grid"))
-    else:
-        print("No equipment found.")
-
-def rent_equipment():
-    visitor_id = input("Visitor ID: ")
-    show_equipment()
-    equipment_id = input("Equipment ID to rent: ")
-    rental_date = input("Rental date (YYYY-MM-DD): ")
-    return_date = input("Return date (YYYY-MM-DD): ")
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO rentals (visitor_id, equipment_id, rental_date, return_date) VALUES (%s, %s, %s, %s)",
-        (visitor_id, equipment_id, rental_date, return_date)
-    )
-    cursor.execute(
-        "UPDATE equipment SET is_available=FALSE WHERE equipment_id=%s", (equipment_id,)
-    )
+    cursor.execute(f"DELETE FROM {table_name} WHERE {condition_column} = %s", (value,))
     conn.commit()
     cursor.close()
     conn.close()
-    print("Equipment rented.")
-
-def show_activities():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT activity_id, name, date, max_participants FROM activities")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    if rows:
-        print(tabulate.tabulate(rows, headers=["Activity ID", "Name", "Date", "Max Participants"], tablefmt="grid"))
-    else:
-        print("No activities found.")
-
-def register_activity():
-    visitor_id = input("Visitor ID: ")
-    show_activities()
-    activity_id = input("Activity ID to register for: ")
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO activity_registration (activity_id, visitor_id) VALUES (%s, %s)",
-        (activity_id, visitor_id)
-    )
-    conn.commit()
-    cursor.close()
-    conn.close()
-    print("Activity registration complete.")
+    print("Deleted successfully.\n")
 
 def menu():
+    tables = {
+        "1": "visitors",
+        "2": "bookings",
+        "3": "equipment",
+        "4": "rentals",
+        "5": "activities",
+        "6": "activity_registration",
+        "7": "staff"
+    }
+
     while True:
-        print("\n--- Camping Site Management ---")
-        print("1. Add Visitor")
-        print("2. Update Visitor")
-        print("3. Delete Visitor")
-        print("4. Insert Sample Data")
-        print("5. Show Visitors")
-        print("6. Show Available Campgrounds")
-        print("7. Check-in")
-        print("8. Check-out")
-        print("9. Show Equipment")
-        print("10. Report Equipment Damage")
-        print("11. Rent Equipment")
-        print("12. Show Activities")
-        print("13. Register for Activity")
-        print("14. Exit")
-        choice = input("Choose an option: ")
-        if choice == '1':
-            add_visitor()
-        elif choice == '2':
-            update_visitor()
-        elif choice == '3':
-            delete_visitor()
-        elif choice == '4':
-            insert_sample_data()
-        elif choice == '5':
-            show_visitors()
-        elif choice == '6':
-            show_available_campgrounds()
-        elif choice == '7':
-            check_in()
-        elif choice == '8':
-            check_out()
-        elif choice == '9':
-            show_equipment()
-        elif choice == '10':
-            report_equipment_damage()
-        elif choice == '11':
-            rent_equipment()
-        elif choice == '12':
-            show_activities()
-        elif choice == '13':
-            register_activity()
-        elif choice == '14':
+        print("\n===== Camping Site Management Menu =====")
+        print("1. Visitors")
+        print("2. Bookings")
+        print("3. Equipment")
+        print("4. Rentals")
+        print("5. Activities")
+        print("6. Activity Registration")
+        print("7. Staff")
+        print("8. Exit")
+
+        table_choice = input("Select a table to manage (1-8): ")
+
+        if table_choice == "8":
+            print("Exiting...")
             break
+        elif table_choice not in tables:
+            print("Invalid option. Try again.")
+            continue
+
+        table_name = tables[table_choice]
+
+        print(f"\n--- {table_name.upper()} Menu ---")
+        print("1. Show records")
+        print("2. Add record")
+        print("3. Modify record")
+        print("4. Delete record")
+
+        action = input("Select an action (1-4): ")
+
+        if action == "1":
+            show_table(table_name)
+
+        elif action == "2":
+            if table_name == "visitors":
+                name = input("Name: ")
+                contact = input("Contact (10 digits): ")
+                email = input("Email: ")
+                id_number = input("ID Number: ")
+                insert_into(table_name, ['name', 'contact', 'email', 'id_number'],
+                            [name, contact, email, id_number])
+
+            elif table_name == "bookings":
+                visitor_id = input("Visitor ID: ")
+                campground_id = input("Campground ID: ")
+                check_in = input("Check-in date (YYYY-MM-DD): ")
+                check_out = input("Check-out date (YYYY-MM-DD): ")
+                insert_into(table_name, ['visitor_id', 'campground_id', 'check_in', 'check_out'],
+                            [visitor_id, campground_id, check_in, check_out])
+
+            elif table_name == "equipment":
+                name = input("Name: ")
+                type_ = input("Type: ")
+                price = input("Price: ")
+                quantity = input("Quantity: ")
+                condition = input("Condition: ")
+                is_available = input("Is Available (1 for True, 0 for False): ")
+                insert_into(table_name, ['name', 'type', 'price', 'quantity', 'equipment_condition', 'is_available'],
+                            [name, type_, price, quantity, condition, is_available])
+
+            elif table_name == "rentals":
+                visitor_id = input("Visitor ID: ")
+                equipment_id = input("Equipment ID: ")
+                rental_date = input("Rental Date (YYYY-MM-DD): ")
+                return_date = input("Return Date (YYYY-MM-DD): ")
+                insert_into(table_name, ['visitor_id', 'equipment_id', 'rental_date', 'return_date'],
+                            [visitor_id, equipment_id, rental_date, return_date])
+
+            elif table_name == "activities":
+                name = input("Activity Name: ")
+                date = input("Date (YYYY-MM-DD): ")
+                max_participants = input("Max Participants: ")
+                price = input("Price: ")
+                insert_into(table_name, ['name', 'date', 'max_participants', 'price'],
+                            [name, date, max_participants, price])
+
+            elif table_name == "activity_registration":
+                activity_id = input("Activity ID: ")
+                visitor_id = input("Visitor ID: ")
+                insert_into(table_name, ['activity_id', 'visitor_id'],
+                            [activity_id, visitor_id])
+
+            elif table_name == "staff":
+                name = input("Name: ")
+                department = input("Department: ")
+                designation = input("Designation: ")
+                hod = input("HOD: ")
+                contact = input("Contact: ")
+                email = input("Email: ")
+                address = input("Address: ")
+                salary = input("Salary: ")
+                insert_into(table_name, ['name', 'department', 'designation', 'HOD', 'contact', 'email', 'address', 'salary'],
+                            [name, department, designation, hod, contact, email, address, salary])
+
+        elif action == "3":
+            id_col = input("Enter ID column name (e.g., visitor_id): ")
+            id_val = input(f"Enter ID value to update in {table_name}: ")
+            set_clause = input("Enter SET clause (e.g., name = %s, contact = %s): ")
+            values_raw = input("Enter new values (comma-separated): ")
+            values = [v.strip() for v in values_raw.split(',')]
+            values.append(id_val)
+            update_table(table_name, set_clause, f"{id_col} = %s", values)
+
+        elif action == "4":
+            id_col = input("Enter ID column name (e.g., visitor_id): ")
+            id_val = input(f"Enter ID value to delete from {table_name}: ")
+            delete_from_table(table_name, id_col, id_val)
+
         else:
-            print("Invalid choice.")
+            print("Invalid action. Try again.")
 
 if __name__ == "__main__":
-    print("Welcome to Camping Site Management System")
     menu()
