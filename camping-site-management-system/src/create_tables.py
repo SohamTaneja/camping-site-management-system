@@ -112,7 +112,9 @@ def create_tables():
         salary DECIMAL(10, 2)
     )
     """)
-    
+
+    # Master Records Table
+
     conn.commit()
     cursor.close()
     conn.close()
