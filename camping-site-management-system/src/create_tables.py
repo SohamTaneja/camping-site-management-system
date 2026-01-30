@@ -1,53 +1,43 @@
 import mysql.connector
+
 DATABASE_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': '',
-    'database': 'Camping_site_Management_System'
+    'password': ''
 }
 
-def create_tables():
-    # Connect without database to create it
+def create_database_and_tables():
+    # Connect to MySQL server (no DB)
     conn = mysql.connector.connect(
         host=DATABASE_CONFIG['host'],
         user=DATABASE_CONFIG['user'],
         password=DATABASE_CONFIG['password']
     )
     cursor = conn.cursor()
-    cursor.execute("CREATE DATABASE IF NOT EXISTS Camping_site_Management_System")
+    cursor.execute("CREATE DATABASE IF NOT EXISTS Camping_Management")
     cursor.close()
     conn.close()
 
-    # Reconnect with database (this is the correct way)
+    # Connect to your database
     conn = mysql.connector.connect(
         host=DATABASE_CONFIG['host'],
         user=DATABASE_CONFIG['user'],
         password=DATABASE_CONFIG['password'],
-        database=DATABASE_CONFIG['database']  # Now specify the database
+        database='Camping_Management'
     )
     cursor = conn.cursor()
 
-    # Visitors table
+    # Users table without salary
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS visitors (
-        visitor_id INT AUTO_INCREMENT PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS users (
+        user_id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role ENUM('admin','customer') NOT NULL,
         name VARCHAR(100),
-        contact CHAR(10),
-        email VARCHAR(100),
-        id_number BIGINT
-    )
-    """)
-
-    # Bookings table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS bookings (
-        booking_id INT AUTO_INCREMENT PRIMARY KEY,
-        visitor_id INT,
-        campground_id INT,
-        check_in DATE,
-        check_out DATE,
-        FOREIGN KEY (visitor_id) REFERENCES visitors(visitor_id)
-    )
+        contact VARCHAR(15),
+        email VARCHAR(100)
+    );
     """)
 
     # Equipment table
@@ -55,103 +45,108 @@ def create_tables():
     CREATE TABLE IF NOT EXISTS equipment (
         equipment_id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100),
-        type VARCHAR(50),
-        price DECIMAL(10, 2),
+        price DECIMAL(10,2),
         quantity INT,
-        equipment_condition VARCHAR(50),
         is_available BOOLEAN DEFAULT TRUE
-    )
+    );
     """)
 
-    # Rentals table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS rentals (
-        rental_id INT AUTO_INCREMENT PRIMARY KEY,
-        visitor_id INT,
-        equipment_id INT,
-        rental_date DATE,
-        return_date DATE,
-        FOREIGN KEY (visitor_id) REFERENCES visitors(visitor_id),
-        FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id)
-    )
-    """)
-
-    # Activities table (fixed comma)
+    # Activities table without location
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS activities (
         activity_id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(100),
+        user_id INT,
+        activity_name VARCHAR(100),
         date DATE,
-        max_participants INT,
-        price DECIMAL(10, 2)
-    )
+        cost_price DECIMAL(10,2),
+        selling_price DECIMAL(10,2),
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+    );
     """)
 
-    # Activity Registration table
+    # Bookings table without location
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS activity_registration (
-        registration_id INT AUTO_INCREMENT PRIMARY KEY,
-        activity_id INT,
-        visitor_id INT,
+    CREATE TABLE IF NOT EXISTS bookings (
+        booking_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        campground_name VARCHAR(100),
+        check_in DATE,
+        check_out DATE,
+        equipment_ids VARCHAR(255),
+        selling_price DECIMAL(10,2),
+        status ENUM('confirmed','cancelled','completed') DEFAULT 'confirmed',
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+    );
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS rentals (
+        rental_id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        activity_id INT NOT NULL,
+        equipment_id INT NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        total_cost DECIMAL(10,2) NOT NULL,
+        rental_status ENUM('pending','confirmed','completed','cancelled') DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(user_id),
         FOREIGN KEY (activity_id) REFERENCES activities(activity_id),
-        FOREIGN KEY (visitor_id) REFERENCES visitors(visitor_id)
-    )
+        FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id)
+    );
     """)
-
-    # Staff table (fixed comma)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS staff (
-        staff_id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(100),
-        department VARCHAR(50),
-        designation VARCHAR(50),
-        HOD VARCHAR(100),
-        contact CHAR(10),
-        email VARCHAR(100),
-        address VARCHAR(255),
-        salary DECIMAL(10, 2)
-    )
-    """)
-
-        # Insert sample data only if not already inserted
-    cursor.execute("SELECT COUNT(*) FROM visitors")
+    # Insert sample users
+    cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
-        # Visitors
-        cursor.execute("INSERT INTO visitors (name, contact, email, id_number) VALUES ('Alice', '1234567890', 'alice@example.com', 1001)")
-        cursor.execute("INSERT INTO visitors (name, contact, email, id_number) VALUES ('Bob', '0987654321', 'bob@example.com', 1002)")
+        cursor.executemany("""
+        INSERT INTO users (username, password, role, name, contact, email)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """, [
+            ('admin1', 'adminpass', 'admin', 'Admin User', '9999999999', 'admin@example.com'),
+            ('customer1', 'custpass', 'customer', 'John Doe', '8888888888', 'user@example.com')
+        ])
 
-        # Equipment
-        cursor.execute("INSERT INTO equipment (name, type, price, quantity, equipment_condition, is_available) VALUES ('Kayak', 'Boat', 100.0, 5, 'Good', TRUE)")
-        cursor.execute("INSERT INTO equipment (name, type, price, quantity, equipment_condition, is_available) VALUES ('Tent', 'Shelter', 50.0, 10, 'Good', TRUE)")
+    # Insert sample equipment
+    cursor.execute("SELECT COUNT(*) FROM equipment")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany("""
+        INSERT INTO equipment (name, price, quantity, is_available)
+        VALUES (%s, %s, %s, %s)
+        """, [
+            ('Tent', 50.0, 10, True),
+            ('Sleeping Bag', 20.0, 15, True),
+        ])
+   
+    # Insert sample activities
+    cursor.execute("SELECT COUNT(*) FROM activities")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany("""
+        INSERT INTO activities (user_id, activity_name, date, cost_price, selling_price)
+        VALUES (%s, %s, %s, %s, %s)
+        """, [
+            (1, 'Hiking', '2025-09-20', 50.0, 100.0),
+            (1, 'Kayaking', '2025-09-22', 80.0, 150.0)
+        ])
 
-        # Activities
-        cursor.execute("INSERT INTO activities (name, date, max_participants, price) VALUES ('Kayaking', '2025-06-01', 10, 200.0)")
-        cursor.execute("INSERT INTO activities (name, date, max_participants, price) VALUES ('Hiking', '2025-06-02', 15, 150.0)")
-
-        # Bookings
-        cursor.execute("INSERT INTO bookings (visitor_id, campground_id, check_in, check_out) VALUES (1, 101, '2025-07-01', '2025-07-05')")
-        cursor.execute("INSERT INTO bookings (visitor_id, campground_id, check_in, check_out) VALUES (2, 102, '2025-07-02', '2025-07-06')")
-
-        # Rentals
-        cursor.execute("INSERT INTO rentals (visitor_id, equipment_id, rental_date, return_date) VALUES (1, 1, '2025-07-01', '2025-07-02')")
-        cursor.execute("INSERT INTO rentals (visitor_id, equipment_id, rental_date, return_date) VALUES (2, 2, '2025-07-03', '2025-07-04')")
-
-        # Activity Registration
-        cursor.execute("INSERT INTO activity_registration (activity_id, visitor_id) VALUES (1, 1)")
-        cursor.execute("INSERT INTO activity_registration (activity_id, visitor_id) VALUES (2, 2)")
-
-        # Staff
-        cursor.execute("INSERT INTO staff (name, department, designation, HOD, contact, email, address, salary) VALUES ('John Smith', 'Operations', 'Manager', 'Jane Doe', '1112223333', 'john@camp.com', '123 Forest Lane', 45000.00)")
-        cursor.execute("INSERT INTO staff (name, department, designation, HOD, contact, email, address, salary) VALUES ('Emily Davis', 'Recreation', 'Guide', 'Jane Doe', '4445556666', 'emily@camp.com', '456 River Road', 32000.00)")
-
-        print("Sample data inserted.")
-    else:
-        print("Sample data already exists. Skipping inserts.")
-
+    # Insert sample bookings
+    cursor.execute("SELECT COUNT(*) FROM bookings")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+        INSERT INTO bookings (user_id, campground_name, check_in, check_out, equipment_ids, selling_price, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (2, 'Sunny Campground', '2025-09-20', '2025-09-22', None, 300.0, 'confirmed'))
+    cursor.execute("SELECT COUNT(*) FROM rentals")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany("""
+        INSERT INTO rentals (user_id, activity_id, equipment_id, start_date, end_date, total_cost, rental_status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, [
+            (2, 1, 1, '2025-09-20', '2025-09-22', 100.0, 'confirmed'),
+            (2, 2, 2, '2025-09-22', '2025-09-24', 40.0, 'confirmed')
+        ])
     conn.commit()
     cursor.close()
     conn.close()
-    print("All tables created or updated successfully.")
+    print("Database and tables created, sample data inserted.")
 
 if __name__ == "__main__":
-    create_tables()
+    create_database_and_tables()
